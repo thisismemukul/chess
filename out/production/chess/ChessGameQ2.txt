@@ -1,0 +1,920 @@
+
+import javax.swing.*;
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ChessGameQ2 {
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(ChessGUI::new);
+    }
+}
+
+enum PieceType {
+    None, Pawn, Knight, Bishop, Rook, Queen, King
+}
+
+enum PieceColor {
+    White, Black
+}
+
+class Piece {
+    public PieceType type;
+    public PieceColor color;
+    public boolean isAvailable;
+
+    public Piece(PieceType type, PieceColor color) {
+        this.type = type;
+        this.color = color;
+        this.isAvailable = true;
+    }
+
+    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+        return false;
+    }
+}
+
+class Pawn extends Piece {
+    public Pawn(PieceColor color) {
+        super(PieceType.Pawn, color);
+    }
+
+    @Override
+    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+        int direction = (color == PieceColor.White) ? 1 : -1;
+        int startRow = (color == PieceColor.White) ? 1 : 6;
+
+        // Forward move
+        if (fromY == toY) {
+            // Single step
+            if (toX == fromX + direction && !board.getSpot(toX, toY).isOccupied()) {
+                return true;
+            }
+            // Double step from start row
+            if (fromX == startRow && toX == fromX + 2 * direction
+                    && !board.getSpot(toX, toY).isOccupied()
+                    && !board.getSpot(fromX + direction, fromY).isOccupied()) {
+                return true;
+            }
+        }
+        // Diagonal capture
+        else if (Math.abs(toY - fromY) == 1 && toX == fromX + direction) {
+            if (board.getSpot(toX, toY).isOccupied()
+                    && board.getSpot(toX, toY).getPiece().color != this.color) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+class King extends Piece {
+    public King(PieceColor color) {
+        super(PieceType.King, color);
+    }
+
+    @Override
+    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+        int dx = Math.abs(fromX - toX);
+        int dy = Math.abs(fromY - toY);
+        return dx <= 1 && dy <= 1;
+    }
+}
+
+class Rook extends Piece {
+    public Rook(PieceColor color) {
+        super(PieceType.Rook, color);
+    }
+
+    @Override
+    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+        return fromX == toX || fromY == toY;
+    }
+}
+
+class Knight extends Piece {
+    public Knight(PieceColor color) {
+        super(PieceType.Knight, color);
+    }
+
+    @Override
+    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+        int dx = Math.abs(fromX - toX);
+        int dy = Math.abs(fromY - toY);
+        return dx * dy == 2;
+    }
+}
+
+class Bishop extends Piece {
+    public Bishop(PieceColor color) {
+        super(PieceType.Bishop, color);
+    }
+
+    @Override
+    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+        return Math.abs(fromX - toX) == Math.abs(fromY - toY);
+    }
+}
+
+class Queen extends Piece {
+    public Queen(PieceColor color) {
+        super(PieceType.Queen, color);
+    }
+
+    @Override
+    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+        return fromX == toX || fromY == toY || Math.abs(fromX - toX) == Math.abs(fromY - toY);
+    }
+}
+
+class Board {
+    private Spot[][] spots;
+    private boolean win;
+
+    public Board() {
+        spots = new Spot[8][8];
+        for (int i = 0; i < 8; i++) {
+            for (int j = 0; j < 8; j++) {
+                spots[i][j] = new Spot(i, j);
+            }
+        }
+    }
+
+    public void initialize(Player p1, Player p2) {
+        p1.initializePieces(this);
+        p2.initializePieces(this);
+    }
+
+    public Spot getSpot(int x, int y) {
+        return spots[x][y];
+    }
+
+    public boolean executeMove(Command command) {
+        Spot fromSpot = getSpot(command.curX, command.curY);
+        Spot toSpot = getSpot(command.desX, command.desY);
+        Piece piece = fromSpot.getPiece();
+
+        if (piece == null || !piece.isValidMove(this, command.curX, command.curY, command.desX, command.desY)) {
+            System.out.println("Invalid move.");
+            return false;
+        }
+
+        if (toSpot.isOccupied() && toSpot.getPiece().color == piece.color) {
+            System.out.println("Cannot move to a spot occupied by your own piece.");
+            return false;
+        }
+
+        Piece capturedPiece = toSpot.occupySpot(piece);
+        if (capturedPiece != null && capturedPiece.type == PieceType.King) {
+            System.out.printf("Captured piece: %s of color %s\n", capturedPiece.type, capturedPiece.color);
+            win = true;
+        }
+
+        fromSpot.releaseSpot();
+        return true;
+    }
+
+    public boolean isWin() {
+        return win;
+    }
+}
+
+class Spot {
+    int x, y;
+    private Piece piece;
+
+    public Spot(int x, int y) {
+        this.x = x;
+        this.y = y;
+        this.piece = null;
+    }
+
+    public Piece occupySpot(Piece piece) {
+        Piece original = this.piece;
+        this.piece = piece;
+        return original;
+    }
+
+    public void releaseSpot() {
+        this.piece = null;
+    }
+
+    public boolean isOccupied() {
+        return piece != null;
+    }
+
+    public Piece getPiece() {
+        return piece;
+    }
+}
+
+class Player {
+    private PieceColor color;
+    private List<Piece> pieces;
+
+    public Player(PieceColor color) {
+        this.color = color;
+        pieces = new ArrayList<>();
+    }
+
+    public void initializePieces(Board board) {
+        int pawnRow = (color == PieceColor.White) ? 1 : 6;
+        int mainRow = (color == PieceColor.White) ? 0 : 7;
+
+        for (int i = 0; i < 8; i++) {
+            pieces.add(new Pawn(color));
+            board.getSpot(pawnRow, i).occupySpot(pieces.get(pieces.size() - 1));
+        }
+
+        pieces.add(new Rook(color));
+        pieces.add(new Knight(color));
+        pieces.add(new Bishop(color));
+        pieces.add(new Queen(color));
+        pieces.add(new King(color));
+        pieces.add(new Bishop(color));
+        pieces.add(new Knight(color));
+        pieces.add(new Rook(color));
+
+        for (int i = 0; i < 8; i++) {
+            board.getSpot(mainRow, i).occupySpot(pieces.get(pieces.size() - 8 + i));
+        }
+    }
+
+    public PieceColor getColor() {
+        return color;
+    }
+}
+
+class Game {
+    private Board board;
+    private Player player1;
+    private Player player2;
+    private boolean whiteTurn;
+
+    public Game() {
+        board = new Board();
+        player1 = new Player(PieceColor.White);
+        player2 = new Player(PieceColor.Black);
+        whiteTurn = true;
+    }
+
+    public void startGame() {
+        board.initialize(player1, player2);
+    }
+
+    public Board getBoard() {
+        return board;
+    }
+
+    public boolean isWhiteTurn() {
+        return whiteTurn;
+    }
+
+    public void toggleTurn() {
+        whiteTurn = !whiteTurn;
+    }
+}
+
+class Command {
+    public int curX, curY, desX, desY;
+
+    public Command(int curX, int curY, int desX, int desY) {
+        this.curX = curX;
+        this.curY = curY;
+        this.desX = desX;
+        this.desY = desY;
+    }
+}
+
+class ChessGUI {
+    private JFrame frame;
+    private JPanel boardPanel;
+    private JButton[][] squares;
+    private Game game;
+    private int selectedRow = -1, selectedCol = -1;
+
+    public ChessGUI() {
+        game = new Game();
+        initializeGUI();
+        game.startGame();
+        updateBoard();
+    }
+
+    private void initializeGUI() {
+        frame = new JFrame("Chess Game");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(600, 600);
+
+        boardPanel = new JPanel(new GridLayout(8, 8));
+        squares = new JButton[8][8];
+        initializeBoard();
+
+        frame.add(boardPanel, BorderLayout.CENTER);
+        frame.setVisible(true);
+    }
+
+    private void initializeBoard() {
+        boolean isWhite = true;
+        for (int col = 7; col >= 0; col--) {
+            for (int row = 0; row <= 7; row++) {
+                JButton square = new JButton();
+                square.setBackground(isWhite ? Color.WHITE : Color.GRAY);
+                square.setOpaque(true);
+                square.setBorderPainted(false);
+                square.setFont(new Font("SansSerif", Font.BOLD, 20));
+                square.setHorizontalAlignment(SwingConstants.CENTER);
+                int finalRow = row;
+                int finalCol = col;
+                square.addActionListener(e -> handleSquareClick(finalRow, finalCol));
+                squares[row][col] = square;
+                boardPanel.add(square);
+                isWhite = !isWhite;
+            }
+            isWhite = !isWhite;
+        }
+    }
+
+    private void handleSquareClick(int guiRow, int guiCol) {
+        int boardY = 7 - guiRow;
+
+        System.out.printf("Clicked square (Board: %d, %d)\n", guiCol, boardY);
+
+        Board board = game.getBoard();
+
+        if (selectedRow == -1 && selectedCol == -1) {
+            Spot spot = board.getSpot(guiCol, boardY);
+            if (spot.isOccupied() && spot.getPiece().color == (game.isWhiteTurn() ? PieceColor.White : PieceColor.Black)) {
+                selectedRow = guiCol;
+                selectedCol = boardY;
+                highlightValidMoves(guiCol, boardY);
+            }
+        } else {
+            Command command = new Command(selectedRow, selectedCol, guiCol, boardY);
+            if (board.executeMove(command)) {
+                game.toggleTurn();
+                updateBoard();
+                if (board.isWin()) {
+                    JOptionPane.showMessageDialog(frame, (game.isWhiteTurn() ? "Black" : "White") + " wins!", "Game Over", JOptionPane.INFORMATION_MESSAGE);
+                    frame.dispose();
+                }
+            }
+            clearHighlights();
+            selectedRow = -1;
+            selectedCol = -1;
+        }
+    }
+
+    private void updateBoard() {
+        Board board = game.getBoard();
+        for (int x = 0; x < 8; x++) {
+            for (int y = 0; y < 8; y++) {
+                // Map Board's (x, y) to GUI's GridLayout
+                int guiRow = 7 - y;
+                Spot spot = board.getSpot(x, y);
+                JButton square = squares[guiRow][x];
+                if (spot.isOccupied()) {
+                    Piece piece = spot.getPiece();
+                    String pieceSymbol = getPieceSymbol(piece);
+                    square.setText(pieceSymbol);
+                } else {
+                    square.setText("");
+                }
+            }
+        }
+    }
+//
+//    private String getPieceSymbol(newchessq2.Piece piece) {
+//        switch (piece.type) {
+//            case Pawn:
+//                return piece.color == newchessq2.PieceColor.White ? "♙" : "♟";
+//            case Knight:
+//                return piece.color == newchessq2.PieceColor.White ? "♘" : "♞";
+//            case Bishop:
+//                return piece.color == newchessq2.PieceColor.White ? "♗" : "♝";
+//            case Rook:
+//                return piece.color == newchessq2.PieceColor.White ? "♖" : "♜";
+//            case Queen:
+//                return piece.color == newchessq2.PieceColor.White ? "♕" : "♛";
+//            case King:
+//                return piece.color == newchessq2.PieceColor.White ? "♔" : "♚";
+//            default:
+//                return "";
+//        }
+//    }
+
+    private String getPieceSymbol(Piece piece) {
+        if (piece.color == PieceColor.White) {
+            switch (piece.type) {
+                case Pawn:
+                    return "\u2659";
+                case Rook:
+                    return "\u2656";
+                case Knight:
+                    return "\u2658";
+                case Bishop:
+                    return "\u2657";
+                case Queen:
+                    return "\u2655";
+                case King:
+                    return "\u2654";
+            }
+        } else {
+            switch (piece.type) {
+                case Pawn:
+                    return "\u265F";
+                case Rook:
+                    return "\u265C";
+                case Knight:
+                    return "\u265E";
+                case Bishop:
+                    return "\u265D";
+                case Queen:
+                    return "\u265B";
+                case King:
+                    return "\u265A";
+            }
+        }
+        return "";
+    }
+
+    private void highlightValidMoves(int boardX, int boardY) {
+        Board board = game.getBoard();
+        Spot spot = board.getSpot(boardX, boardY);
+        Piece piece = spot.getPiece();
+
+        for (int x = 0; x < 8; x++) {
+            for (int y = 0; y < 8; y++) {
+                if (piece.isValidMove(board, boardX, boardY, x, y)) {
+                    Spot targetSpot = board.getSpot(x, y);
+                    if (!targetSpot.isOccupied() || targetSpot.getPiece().color != piece.color) {
+                        int guiRow = 7 - y;
+                        int guiCol = x;
+                        squares[guiRow][guiCol].setBackground(Color.YELLOW);
+                    }
+                }
+            }
+        }
+    }
+
+    private void clearHighlights() {
+        boolean isWhite = true;
+        for (int row = 7; row >= 0; row--) {
+            for (int col = 0; col < 8; col++) {
+                squares[row][col].setBackground(isWhite ? Color.WHITE : Color.GRAY);
+                isWhite = !isWhite;
+            }
+            isWhite = !isWhite;
+        }
+    }
+}
+//package newchessq2;
+//
+//import javax.swing.*;
+//import java.awt.*;
+//import java.util.ArrayList;
+//import java.util.List;
+//
+//public class ChessGameQ2 {
+//    public static void main(String[] args) {
+//        SwingUtilities.invokeLater(ChessGUI::new);
+//    }
+//}
+//
+//enum PieceType {
+//    None, Pawn, Knight, Bishop, Rook, Queen, King
+//}
+//
+//enum PieceColor {
+//    White, Black
+//}
+//
+//class Piece {
+//    public PieceType type;
+//    public PieceColor color;
+//    public boolean isAvailable;
+//
+//    public Piece(PieceType type, PieceColor color) {
+//        this.type = type;
+//        this.color = color;
+//        this.isAvailable = true;
+//    }
+//
+//    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+//        return false; // Override in subclasses
+//    }
+//}
+//
+//class Pawn extends Piece {
+//    public Pawn(PieceColor color) {
+//        super(PieceType.Pawn, color);
+//    }
+//
+//    @Override
+//    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+//        int direction = (color == PieceColor.White) ? 1 : -1;
+//        int startRow = (color == PieceColor.White) ? 1 : 6;
+//
+//        // Forward move
+//        if (fromY == toY) {
+//            // Single step
+//            if (toX == fromX + direction && !board.getSpot(toX, toY).isOccupied()) {
+//                return true;
+//            }
+//            // Double step from start row
+//            if (fromX == startRow && toX == fromX + 2 * direction
+//                    && !board.getSpot(toX, toY).isOccupied()
+//                    && !board.getSpot(fromX + direction, fromY).isOccupied()) {
+//                return true;
+//            }
+//        }
+//        // Diagonal capture
+//        else if (Math.abs(toY - fromY) == 1 && toX == fromX + direction) {
+//            if (board.getSpot(toX, toY).isOccupied()
+//                    && board.getSpot(toX, toY).getPiece().color != this.color) {
+//                return true;
+//            }
+//        }
+//        return false;
+//    }
+//}
+//
+//class King extends Piece {
+//    public King(PieceColor color) {
+//        super(PieceType.King, color);
+//    }
+//
+//    @Override
+//    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+//        int dx = Math.abs(fromX - toX);
+//        int dy = Math.abs(fromY - toY);
+//        return dx <= 1 && dy <= 1;
+//    }
+//}
+//
+//class Rook extends Piece {
+//    public Rook(PieceColor color) {
+//        super(PieceType.Rook, color);
+//    }
+//
+//    @Override
+//    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+//        return fromX == toX || fromY == toY;
+//    }
+//}
+//
+//class Knight extends Piece {
+//    public Knight(PieceColor color) {
+//        super(PieceType.Knight, color);
+//    }
+//
+//    @Override
+//    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+//        int dx = Math.abs(fromX - toX);
+//        int dy = Math.abs(fromY - toY);
+//        return dx * dy == 2;
+//    }
+//}
+//
+//class Bishop extends Piece {
+//    public Bishop(PieceColor color) {
+//        super(PieceType.Bishop, color);
+//    }
+//
+//    @Override
+//    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+//        return Math.abs(fromX - toX) == Math.abs(fromY - toY);
+//    }
+//}
+//
+//class Queen extends Piece {
+//    public Queen(PieceColor color) {
+//        super(PieceType.Queen, color);
+//    }
+//
+//    @Override
+//    public boolean isValidMove(Board board, int fromX, int fromY, int toX, int toY) {
+//        return fromX == toX || fromY == toY || Math.abs(fromX - toX) == Math.abs(fromY - toY);
+//    }
+//}
+//
+//class Board {
+//    private Spot[][] spots;
+//    private boolean win;
+//
+//    public Board() {
+//        spots = new Spot[8][8];
+//        for (int i = 0; i < 8; i++) {
+//            for (int j = 0; j < 8; j++) {
+//                spots[i][j] = new Spot(i, j);
+//            }
+//        }
+//    }
+//
+//    public void initialize(Player p1, Player p2) {
+//        p1.initializePieces(this);
+//        p2.initializePieces(this);
+//    }
+//
+//    public Spot getSpot(int x, int y) {
+//        return spots[x][y];
+//    }
+//
+//    public boolean executeMove(Command command) {
+//        Spot fromSpot = getSpot(command.curX, command.curY);
+//        Spot toSpot = getSpot(command.desX, command.desY);
+//        Piece piece = fromSpot.getPiece();
+//
+//        if (piece == null || !piece.isValidMove(this, command.curX, command.curY, command.desX, command.desY)) {
+//            return false;
+//        }
+//
+//        if (toSpot.isOccupied() && toSpot.getPiece().color == piece.color) {
+//            return false;
+//        }
+//
+//        Piece capturedPiece = toSpot.occupySpot(piece);
+//        if (capturedPiece != null && capturedPiece.type == PieceType.King) {
+//            win = true;
+//        }
+//
+//        fromSpot.releaseSpot();
+//        return true;
+//    }
+//
+//    public boolean isWin() {
+//        return win;
+//    }
+//}
+//
+//class Spot {
+//    int x, y;
+//    private Piece piece;
+//
+//    public Spot(int x, int y) {
+//        this.x = x;
+//        this.y = y;
+//        this.piece = null;
+//    }
+//
+//    public Piece occupySpot(Piece piece) {
+//        Piece original = this.piece;
+//        this.piece = piece;
+//        return original;
+//    }
+//
+//    public void releaseSpot() {
+//        this.piece = null;
+//    }
+//
+//    public boolean isOccupied() {
+//        return piece != null;
+//    }
+//
+//    public Piece getPiece() {
+//        return piece;
+//    }
+//}
+//
+//class Player {
+//    private PieceColor color;
+//    private List<Piece> pieces;
+//
+//    public Player(PieceColor color) {
+//        this.color = color;
+//        pieces = new ArrayList<>();
+//    }
+//
+//    public void initializePieces(Board board) {
+//        int pawnRow = (color == PieceColor.White) ? 1 : 6;
+//        int mainRow = (color == PieceColor.White) ? 0 : 7;
+//
+//        // Place pawns
+//        for (int i = 0; i < 8; i++) {
+//            pieces.add(new Pawn(color));
+//            board.getSpot(pawnRow, i).occupySpot(pieces.get(pieces.size() - 1));
+//        }
+//
+//        // Place main pieces
+//        pieces.add(new Rook(color));
+//        pieces.add(new Knight(color));
+//        pieces.add(new Bishop(color));
+//        pieces.add(new Queen(color));
+//        pieces.add(new King(color));
+//        pieces.add(new Bishop(color));
+//        pieces.add(new Knight(color));
+//        pieces.add(new Rook(color));
+//
+//        for (int i = 0; i < 8; i++) {
+//            board.getSpot(mainRow, i).occupySpot(pieces.get(pieces.size() - 8 + i));
+//        }
+//    }
+//
+//    public PieceColor getColor() {
+//        return color;
+//    }
+//}
+//
+//class Game {
+//    private Board board;
+//    private Player player1;
+//    private Player player2;
+//    private boolean whiteTurn;
+//
+//    public Game() {
+//        board = new Board();
+//        player1 = new Player(PieceColor.White);
+//        player2 = new Player(PieceColor.Black);
+//        whiteTurn = true;
+//    }
+//
+//    public void startGame() {
+//        board.initialize(player1, player2);
+//    }
+//
+//    public Board getBoard() {
+//        return board;
+//    }
+//
+//    public boolean isWhiteTurn() {
+//        return whiteTurn;
+//    }
+//
+//    public void toggleTurn() {
+//        whiteTurn = !whiteTurn;
+//    }
+//}
+//
+//class Command {
+//    public int curX, curY, desX, desY;
+//
+//    public Command(int curX, int curY, int desX, int desY) {
+//        this.curX = curX;
+//        this.curY = curY;
+//        this.desX = desX;
+//        this.desY = desY;
+//    }
+//}
+//
+//class ChessGUI {
+//    private JFrame frame;
+//    private JPanel boardPanel;
+//    private JButton[][] squares;
+//    private Game game;
+//    private int selectedRow = -1, selectedCol = -1;
+//
+//    public ChessGUI() {
+//        game = new Game();
+//        initializeGUI();
+//        game.startGame();
+//        updateBoard();
+//    }
+//
+//    private void initializeGUI() {
+//        frame = new JFrame("Chess Game");
+//        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//        frame.setSize(600, 600);
+//
+//        boardPanel = new JPanel(new GridLayout(8, 8));
+//        squares = new JButton[8][8];
+//        initializeBoard();
+//
+//        frame.add(boardPanel, BorderLayout.CENTER);
+//        frame.setVisible(true);
+//    }
+//
+//    private void initializeBoard() {
+//        boolean isWhite = true;
+//        for (int col = 7; col >= 0; col--) {
+//            for (int row = 0; row <= 7; row++) {
+//                JButton square = new JButton();
+//                square.setBackground(isWhite ? Color.WHITE : Color.GRAY);
+//                square.setOpaque(true);
+//                square.setBorderPainted(false);
+//                square.setFont(new Font("SansSerif", Font.BOLD, 20));
+//                square.setHorizontalAlignment(SwingConstants.CENTER);
+//                int finalRow = row;
+//                int finalCol = col;
+//                square.addActionListener(e -> handleSquareClick(finalRow, finalCol));
+//                squares[row][col] = square;
+//                boardPanel.add(square);
+//                isWhite = !isWhite;
+//            }
+//            isWhite = !isWhite;
+//        }
+//    }
+//
+//    private void handleSquareClick(int guiRow, int guiCol) {
+//        // Convert GUI indices (GridLayout) to Board coordinates
+//        int boardX = 7 - guiRow;
+//        int boardY = guiCol;
+//
+//        System.out.printf("Clicked square (Board: %d, %d)\n", boardX, boardY);
+//
+//        Board board = game.getBoard();
+//
+//        if (selectedRow == -1 && selectedCol == -1) {
+//            Spot spot = board.getSpot(boardX, boardY);
+//            if (spot.isOccupied() && spot.getPiece().color == (game.isWhiteTurn() ? PieceColor.White : PieceColor.Black)) {
+//                selectedRow = boardX;
+//                selectedCol = boardY;
+//                highlightValidMoves(boardX, boardY);
+//            }
+//        } else {
+//            Command command = new Command(selectedRow, selectedCol, boardX, boardY);
+//            if (board.executeMove(command)) {
+//                game.toggleTurn();
+//                updateBoard();
+//                if (board.isWin()) {
+//                    JOptionPane.showMessageDialog(frame, (game.isWhiteTurn() ? "Black" : "White") + " wins!", "Game Over", JOptionPane.INFORMATION_MESSAGE);
+//                    frame.dispose();
+//                }
+//            }
+//            clearHighlights();
+//            selectedRow = -1;
+//            selectedCol = -1;
+//        }
+//    }
+//
+//    private void updateBoard() {
+//        Board board = game.getBoard();
+//        for (int x = 0; x < 8; x++) {
+//            for (int y = 0; y < 8; y++) {
+//                // Map Board's (x, y) to GUI's GridLayout (7 - x, y)
+//                int guiRow = 7 - x;
+//                int guiCol = y;
+//                Spot spot = board.getSpot(x, y);
+//                JButton square = squares[guiRow][guiCol];
+//                if (spot.isOccupied()) {
+//                    Piece piece = spot.getPiece();
+//                    String pieceSymbol = getPieceSymbol(piece);
+//                    square.setText(pieceSymbol);
+//                } else {
+//                    square.setText("");
+//                }
+//            }
+//        }
+//    }
+//    private String getPieceSymbol(Piece piece) {
+//        if (piece.color == PieceColor.White) {
+//            switch (piece.type) {
+//                case Pawn:
+//                    return "\u2659";
+//                case Rook:
+//                    return "\u2656";
+//                case Knight:
+//                    return "\u2658";
+//                case Bishop:
+//                    return "\u2657";
+//                case Queen:
+//                    return "\u2655";
+//                case King:
+//                    return "\u2654";
+//            }
+//        } else {
+//            switch (piece.type) {
+//                case Pawn:
+//                    return "\u265F";
+//                case Rook:
+//                    return "\u265C";
+//                case Knight:
+//                    return "\u265E";
+//                case Bishop:
+//                    return "\u265D";
+//                case Queen:
+//                    return "\u265B";
+//                case King:
+//                    return "\u265A";
+//            }
+//        }
+//        return "";
+//    }
+//
+//    private void highlightValidMoves(int boardX, int boardY) {
+//        Board board = game.getBoard();
+//        Spot spot = board.getSpot(boardX, boardY);
+//        Piece piece = spot.getPiece();
+//
+//        for (int x = 0; x < 8; x++) {
+//            for (int y = 0; y < 8; y++) {
+//                if (piece.isValidMove(board, boardX, boardY, x, y)) {
+//                    Spot targetSpot = board.getSpot(x, y);
+//                    if (!targetSpot.isOccupied() || targetSpot.getPiece().color != piece.color) {
+//                        int guiRow = 7 - x;
+//                        int guiCol = y;
+//                        squares[guiRow][guiCol].setBackground(Color.YELLOW);
+//                    }
+//                }
+//            }
+//        }
+//    }
+//    private void clearHighlights() {
+//        boolean isWhite = true;
+//        for (int row = 7; row >= 0; row--) {
+//            for (int col = 0; col < 8; col++) {
+//                squares[row][col].setBackground(isWhite ? Color.WHITE : Color.GRAY);
+//                isWhite = !isWhite;
+//            }
+//            isWhite = !isWhite;
+//        }
+//    }
+//}
