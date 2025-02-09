@@ -351,7 +351,7 @@ public class ChessGUI {
                     if (!targetSpot.isOccupied() || targetSpot.getPiece().getPieceColor() != piece.getPieceColor()) {
                         int guiRow = 7 - y;
                         int guiCol = x;
-                        squares[guiRow][guiCol].setBackground(Color.YELLOW);
+                        squares[guiRow][guiCol].setBackground(new Color(255, 255, 204));
                     }
                 }
             }
