@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Chess Game</title>
+    <script src="https://cjrtnc.leaningtech.com/3.1/cj3loader.js"></script>
+</head>
+<body>
+<h1>Chess Game</h1>
+<canvas id="cheerpj-canvas"></canvas>  <!-- Explicit Canvas -->
+<script>
+    (async function () {
+        console.log("Initializing CheerpJ...");
+        await cheerpjInit();
+        console.log("CheerpJ initialized.");
+
+        // Create a display for Swing rendering
+        cheerpjCreateDisplay(800, 600);
+
+        try {
+            await cheerpjRunJar("chess.jar", {mainMethod: "Main.class"});
+            // await cheerpjRunJar("./chess.jar");
+            console.log("JAR executed successfully.");
+        } catch (error) {
+            console.error("Error executing JAR:", error);
+        }
+    })();
+</script>
+</body>
+</html>
