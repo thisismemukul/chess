@@ -1,7 +1,7 @@
 # <h1 style="text-align:center;">Design a Chess Game</h1>
 <p style="text-align:center;">This repository contains a chess game with proper system design journey using Java.</p>
 <p style="text-align:center;">
-  <img src="https://github.com/thisismemukul/gameswithgo/blob/main/GamesWithGo.png" alt="Chess Game with Java" title="Games with java show png" width="500"/>
+  <img src="https://raw.githubusercontent.com/thisismemukul/chess/refs/heads/main/demo.png" alt="Chess Game with Java" title="Games with java show png" width="500"/>
 </p>
 
 <p> The main classes will be: </p>
